@@ -42,10 +42,6 @@ public class ClassifierActivity extends CameraActivity implements OnImageAvailab
   private Integer sensorOrientation;
   private Classifier classifier;
   private BorderedText borderedText;
-  /** Input image size of the model along x axis. */
-  private int imageSizeX;
-  /** Input image size of the model along y axis. */
-  private int imageSizeY;
 
   @Override
   protected int getLayoutId() {
@@ -113,7 +109,6 @@ public class ClassifierActivity extends CameraActivity implements OnImageAvailab
   @Override
   protected void onInferenceConfigurationChanged() {
     if (rgbFrameBitmap == null) {
-      // Defer creation until we're getting camera frames.
       return;
     }
     final Device device = getDevice();
@@ -136,8 +131,8 @@ public class ClassifierActivity extends CameraActivity implements OnImageAvailab
     }
 
     // Updates the input image size.
-    imageSizeX = classifier.getImageSizeX();
-    imageSizeY = classifier.getImageSizeY();
+//    imageSizeX = classifier.getImageSizeX();
+//    imageSizeY = classifier.getImageSizeY();
   }
 
 //  @Override

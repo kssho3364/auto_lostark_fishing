@@ -496,7 +496,7 @@ public abstract class CameraActivity extends AppCompatActivity
         if (recognition.getConfidence() != null) {
           recognitionValueTextView.setText(String.format("%.2f", (100 * recognition.getConfidence())) + "%");
           Log.d("value",""+recognition.getConfidence());
-          if(recognition.getConfidence() > 0.8){
+          if(recognition.getConfidence() > 0.9){
             Toast.makeText(this, ""+recognition.getTitle(),Toast.LENGTH_SHORT).show();
             finish();
           }

@@ -17,12 +17,13 @@
         android:theme="@style/AppTheme.ImageClassification">
         <activity
             android:name=".ClassifierActivity"
-            android:label="@string/tfe_ic_app_name"
+            android:label="로아자동낚시"
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".MainActivity"/>
     </application>
 </manifest>

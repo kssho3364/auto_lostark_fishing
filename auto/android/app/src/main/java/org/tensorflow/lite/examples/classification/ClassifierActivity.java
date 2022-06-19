@@ -129,20 +129,5 @@ public class ClassifierActivity extends CameraActivity implements OnImageAvailab
     } catch (IOException e) {
       LOGGER.e(e, "Failed to create classifier.");
     }
-
-    // Updates the input image size.
-//    imageSizeX = classifier.getImageSizeX();
-//    imageSizeY = classifier.getImageSizeY();
   }
-
-//  @Override
-//  public void onClick(View v) {
-//
-//  }
-//
-//  @Override
-//  public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-//
-//  }
-
 }

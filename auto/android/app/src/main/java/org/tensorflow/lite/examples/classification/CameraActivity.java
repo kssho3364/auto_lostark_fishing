@@ -45,7 +45,6 @@ import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -57,6 +56,39 @@ import org.tensorflow.lite.examples.classification.env.ImageUtils;
 import org.tensorflow.lite.examples.classification.env.Logger;
 import org.tensorflow.lite.examples.classification.tflite.Classifier.Device;
 import org.tensorflow.lite.examples.classification.tflite.Classifier.Recognition;
+
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.app.ActivityCompat;
+
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothSocket;
+import android.content.Intent;
+
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.location.LocationManager;
+
+import android.os.Bundle;
+import android.provider.Settings;
+import android.util.Log;
+import android.view.View;
+import android.widget.Adapter;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.io.IOException;
+
+import java.util.ArrayList;
+import java.lang.reflect.Method;
+import java.util.List;
+import java.util.UUID;
+
 
 public abstract class CameraActivity extends AppCompatActivity
     implements OnImageAvailableListener,
@@ -83,17 +115,30 @@ public abstract class CameraActivity extends AppCompatActivity
   private LinearLayout gestureLayout;
   private BottomSheetBehavior<LinearLayout> sheetBehavior;
   protected TextView recognitionTextView,
-      recognition1TextView,
-      recognition2TextView,
       recognitionValueTextView,
-      recognition1ValueTextView,
-      recognition2ValueTextView;
+      stateTextView;
+
 
   protected ImageView bottomSheetArrowImageView;
+
+  private List<String> list;
+  private List<String> adressList;
+  private ArrayAdapter<String> adapter;
+
+  private Button searchDevice_bt, testButton;
+  private ListView deviceListView;
 
 
   private Device device = Device.CPU;
   private int numThreads = -1;
+
+  UUID BT_MODULE_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"); // "random" unique identifier
+
+  ConnectedThread connectedThread;
+
+  BluetoothSocket btSocket = null;
+
+  private BluetoothAdapter bluetoothAdapter;
 
   @Override
   protected void onCreate(final Bundle savedInstanceState) {
@@ -102,6 +147,8 @@ public abstract class CameraActivity extends AppCompatActivity
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
     setContentView(R.layout.tfe_ic_activity_camera);
+
+    bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
     if (hasPermission()) {
       setFragment();
@@ -161,12 +208,73 @@ public abstract class CameraActivity extends AppCompatActivity
           public void onSlide(@NonNull View bottomSheet, float slideOffset) {}
         });
 
+    //바텀시트 아이템
     recognitionTextView = findViewById(R.id.detected_item);
     recognitionValueTextView = findViewById(R.id.detected_item_value);
-    recognition1TextView = findViewById(R.id.detected_item1);
-    recognition1ValueTextView = findViewById(R.id.detected_item1_value);
-    recognition2TextView = findViewById(R.id.detected_item2);
-    recognition2ValueTextView = findViewById(R.id.detected_item2_value);
+    searchDevice_bt = findViewById(R.id.search_device_bt);
+    deviceListView = findViewById(R.id.listview_device);
+    stateTextView = findViewById(R.id.state);
+
+    testButton = findViewById(R.id.test_bt);
+
+
+    list = new ArrayList<>();
+    adressList = new ArrayList<>();
+    adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1,list);
+    deviceListView.setAdapter(adapter);
+
+    adapter.notifyDataSetChanged();
+
+    searchDevice_bt.setOnClickListener(v->{
+      list.clear();
+      IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+      this.registerReceiver(receiver, filter);
+
+      filter.addAction(BluetoothDevice.ACTION_FOUND);
+
+      if (bluetoothAdapter.isDiscovering()) {
+        bluetoothAdapter.cancelDiscovery();
+      }
+      bluetoothAdapter.startDiscovery();
+    });
+
+    testButton.setOnClickListener(v->{
+      if(connectedThread!=null){ connectedThread.write("a"); }
+    });
+
+    //검색목록 리스트뷰 이벤트
+    deviceListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+      @Override
+      public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+        Toast.makeText(CameraActivity.this,""+adapterView.getItemAtPosition(i),Toast.LENGTH_SHORT).show();
+        BluetoothDevice device = bluetoothAdapter.getRemoteDevice(adressList.get(i));
+
+        boolean flag = true;
+
+        try {
+          btSocket = createBluetoothSocket(device);
+          btSocket.connect();
+        } catch (IOException e) {
+          flag = false;
+          stateTextView.setText("연결 실패");
+          e.printStackTrace();
+        }
+
+        if(flag){
+          bluetoothAdapter.cancelDiscovery();
+
+          sheetBehavior.setHideable(false);
+
+          stateTextView.setText(""+adapterView.getItemAtPosition(i)+" 연결됨 ");
+          list.clear();
+          adapter.notifyDataSetChanged();
+
+          connectedThread = new ConnectedThread(btSocket);
+          connectedThread.start();
+        }
+
+      }
+    });
 
   }
 
@@ -326,6 +434,7 @@ public abstract class CameraActivity extends AppCompatActivity
   public synchronized void onDestroy() {
     LOGGER.d("onDestroy " + this);
     super.onDestroy();
+    unregisterReceiver(receiver);
   }
 
   protected synchronized void runInBackground(final Runnable r) {
@@ -335,8 +444,8 @@ public abstract class CameraActivity extends AppCompatActivity
   }
 
   @Override
-  public void onRequestPermissionsResult(
-      final int requestCode, final String[] permissions, final int[] grantResults) {
+  public void onRequestPermissionsResult(final int requestCode, final String[] permissions, final int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     if (requestCode == PERMISSIONS_REQUEST) {
       if (allPermissionsGranted(grantResults)) {
         setFragment();
@@ -498,27 +607,9 @@ public abstract class CameraActivity extends AppCompatActivity
           Log.d("value",""+recognition.getConfidence());
           if(recognition.getConfidence() > 0.9){
             Toast.makeText(this, ""+recognition.getTitle(),Toast.LENGTH_SHORT).show();
-            finish();
+//            finish(); @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
           }
         }
-      }
-
-      Recognition recognition1 = results.get(1);
-      if (recognition1 != null) {
-        if (recognition1.getTitle() != null) {
-          recognition1TextView.setText(recognition1.getTitle());
-        }
-        if (recognition1.getConfidence() != null)
-          recognition1ValueTextView.setText(
-              String.format("%.2f", (100 * recognition1.getConfidence())) + "%");
-      }
-
-      Recognition recognition2 = results.get(2);
-      if (recognition2 != null) {
-        if (recognition2.getTitle() != null) recognition2TextView.setText(recognition2.getTitle());
-        if (recognition2.getConfidence() != null)
-          recognition2ValueTextView.setText(
-              String.format("%.2f", (100 * recognition2.getConfidence())) + "%");
       }
     }
   }
@@ -537,6 +628,36 @@ public abstract class CameraActivity extends AppCompatActivity
       this.numThreads = numThreads;
       onInferenceConfigurationChanged();
     }
+  }
+  private final BroadcastReceiver receiver = new BroadcastReceiver() {
+    @Override
+    public void onReceive(Context context, Intent intent) {
+      SharedPreferences sharedPreferences = getSharedPreferences("myName", MODE_PRIVATE);
+      String myName = sharedPreferences.getString("name", "");
+      String action = intent.getAction();
+      if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+        BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+        Log.d("found","name : "+device.getName());
+        list.add(""+device.getName());
+        adressList.add(device.getAddress());
+        Log.d("listItem",""+list.get(0));
+        adapter.notifyDataSetChanged();//리스트뷰 갱신
+        //getName() 값이 null 이면 .equals 를 사용할 때 오류가 난다.
+        //따라서 device 주소와 비교하기 전에 null인지 먼저 비교해본다.
+
+      }
+    }
+
+  };
+
+  private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
+    try {
+      final Method m = device.getClass().getMethod("createInsecureRfcommSocketToServiceRecord", UUID.class);
+      return (BluetoothSocket) m.invoke(device, BT_MODULE_UUID);
+    } catch (Exception e) {
+
+    }
+    return  device.createRfcommSocketToServiceRecord(BT_MODULE_UUID);
   }
 
   protected abstract void processImage();

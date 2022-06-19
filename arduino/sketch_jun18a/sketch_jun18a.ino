@@ -4,11 +4,7 @@
 Servo servo;
 
 int count = 0;
-int countMillis = 4;
 long myTime = 0;
-
-unsigned long millisTime;
-unsigned long timee = 0;
 
 int TXNum = 2;//신호 송신
 int RXNum = 3;//신호 수신
@@ -31,15 +27,16 @@ void setup() {
 
 void loop() {
     
-      myTime++;
+    myTime++;
 
-      if(myTime > 7000){
-        count = 1;
-      }
+    if(myTime > 7000){
+      count = 1;
+    }
+    Serial.println(myTime);
       
-      if(bluetooth.available() || count == 1){
+    if(bluetooth.available()){
       byte data = bluetooth.read();
-      if(data == 'a' || count == 1){
+      if(data == 'a'){
         value = 0;
         servo.write(value);
         delay(100);
@@ -56,5 +53,13 @@ void loop() {
         count = 0;
         myTime = 0;
       }
-    }   
+    }else if(count == 1){
+        value = 0;
+        servo.write(value);
+        delay(100);
+        value = 40;
+        servo.write(value);
+        count = 0;
+        myTime = 0;
+      }
 }

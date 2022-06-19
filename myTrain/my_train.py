@@ -11,7 +11,7 @@ from tflite_model_maker.image_classifier import DataLoader
 #       'flower_photos',
 #       'https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz',
 #       untar=True)
-image_path = 'C:/Users/sano/.keras/datasets/flower_photos'
+image_path = 'D:/trainingImages'
 
 data = DataLoader.from_folder(image_path)
 train_data, test_data = data.split(0.9)

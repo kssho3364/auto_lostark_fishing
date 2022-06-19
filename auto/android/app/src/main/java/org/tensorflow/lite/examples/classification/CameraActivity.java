@@ -239,8 +239,17 @@ public abstract class CameraActivity extends AppCompatActivity
     });
 
     testButton.setOnClickListener(v->{
-      if(connectedThread!=null){ connectedThread.write("a"); }
+      if(connectedThread!=null){
+          connectedThread.write("a");
+//          try {
+//              Thread.sleep(8000);
+//          } catch (InterruptedException e) {
+//              e.printStackTrace();
+//          }
+      }
     });
+
+//    btSocket.getInputStream().
 
     //검색목록 리스트뷰 이벤트
     deviceListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -605,9 +614,12 @@ public abstract class CameraActivity extends AppCompatActivity
         if (recognition.getConfidence() != null) {
           recognitionValueTextView.setText(String.format("%.2f", (100 * recognition.getConfidence())) + "%");
           Log.d("value",""+recognition.getConfidence());
-          if(recognition.getConfidence() > 0.9){
+          if(recognition.getConfidence() > 0.65 && recognition.getTitle().equals("catch")){
             Toast.makeText(this, ""+recognition.getTitle(),Toast.LENGTH_SHORT).show();
 //            finish(); @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+            if(connectedThread!=null){
+              connectedThread.write("a");
+            }
           }
         }
       }
